@@ -7,6 +7,7 @@ import 'package:weather_r/features/weather/model/weather_model.dart';
 import 'package:weather_r/features/weather/data/get_api_weather.dart';
 import 'package:weather_r/features/weather/data/get_location.dart';
 import 'package:weather_r/features/weather/widget/hourly.dart';
+import 'package:weather_r/features/weather/widget/net_work_helper.dart';
 import 'package:weather_r/spalsh_screen.dart';
 
 class Home extends StatefulWidget {
@@ -26,10 +27,20 @@ class _HomeState extends State<Home> {
     _weatherFuture = _fetchWeather();
   }
 
-  Future<Weather> _fetchWeather({String? cityName}) async {
-    final city = cityName ?? await GetLocation().getCurrentLocation();
-    return _weatherService.fetchWeatherByLocation(city);
+ Future<Weather> _fetchWeather({String? cityName}) async {
+  final city = cityName ?? await GetLocation().getCurrentLocation();
+
+  // Network check
+  bool connected = await NetworkHelper.isConnected();
+  if (!connected) {
+    NetworkHelper.showNoConnectionPopup(context);  
+   
+    throw Exception("No internet connection");
   }
+
+  return _weatherService.fetchWeatherByLocation(city);
+}
+
 
   String getweatherAnimation(String? conditionText, bool isDayTime) {
     if (conditionText == null || conditionText.isEmpty) {
@@ -121,6 +132,9 @@ class _HomeState extends State<Home> {
 
           return Center(
             child: SingleChildScrollView(
+              physics: BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -293,16 +307,16 @@ class _HomeState extends State<Home> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 _InfoItem(
-                                  "Chance of Rain",
+                                  "Rain Chance",
                                   "${day.day.dailyChanceOfRain}%",
                                 ),
                                 _InfoItem(
-                                  "Chance of Snow",
+                                  "Snow Chance",
                                   "${day.day.dailyChanceOfSnow}%",
                                 ),
                                 _InfoItem(
                                   "Max Wind",
-                                  "${day.day.maxwindKph} km/w",
+                                  "${day.day.maxwindKph} km/h",
                                 ),
                               ],
                             ),
@@ -325,9 +339,38 @@ class _HomeState extends State<Home> {
                                 onTap: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          DailyForecastPage(weather: weather),
+                                    PageRouteBuilder(
+                                      pageBuilder:
+                                          (
+                                            context,
+                                            animation,
+                                            secondaryAnimation,
+                                          ) => DailyForecastPage(
+                                            weather: weather,
+                                          ),
+                                      transitionsBuilder:
+                                          (
+                                            context,
+                                            animation,
+                                            secondaryAnimation,
+                                            child,
+                                          ) {
+                                            final begin = Offset(0.0, 1.0);
+                                            final end = Offset.zero;
+                                            final curve = Curves.ease;
+
+                                            final tween = Tween(
+                                              begin: begin,
+                                              end: end,
+                                            ).chain(CurveTween(curve: curve));
+                                            final offsetAnimation = animation
+                                                .drive(tween);
+
+                                            return SlideTransition(
+                                              position: offsetAnimation,
+                                              child: child,
+                                            );
+                                          },
                                     ),
                                   );
                                 },
@@ -344,7 +387,10 @@ class _HomeState extends State<Home> {
                                     ),
                                     Text(
                                       'View Full Report',
-                                      style: TextStyle(color: Colors.blue),
+                                      style: TextStyle(
+                                        color: Colors.blue,
+                                        fontSize: 16,
+                                      ),
                                     ),
                                   ],
                                 ),
