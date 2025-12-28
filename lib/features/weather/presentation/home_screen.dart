@@ -21,26 +21,31 @@ class _HomeState extends State<Home> {
   final GetApiWeather _weatherService = GetApiWeather();
   late Future<Weather> _weatherFuture;
 
+  bool _popupShown = false; // Only show network popup once
+
   @override
   void initState() {
     super.initState();
     _weatherFuture = _fetchWeather();
   }
 
- Future<Weather> _fetchWeather({String? cityName}) async {
-  final city = cityName ?? await GetLocation().getCurrentLocation();
+  Future<Weather> _fetchWeather({String? cityName}) async {
+    final city = cityName ?? await GetLocation().getCurrentLocation();
 
-  // Network check
-  bool connected = await NetworkHelper.isConnected();
-  if (!connected) {
-    NetworkHelper.showNoConnectionPopup(context);  
-   
-    throw Exception("No internet connection");
+    bool connected = await NetworkHelper.isConnected();
+    if (!connected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_popupShown) {
+          NetworkHelper.showNoConnectionPopup(context);
+          _popupShown = true;
+        }
+      });
+
+      throw Exception("No internet connection");
+    }
+
+    return _weatherService.fetchWeatherByLocation(city);
   }
-
-  return _weatherService.fetchWeatherByLocation(city);
-}
-
 
   String getweatherAnimation(String? conditionText, bool isDayTime) {
     if (conditionText == null || conditionText.isEmpty) {
@@ -102,6 +107,7 @@ class _HomeState extends State<Home> {
           }
 
           if (snapshot.hasError) {
+            // Show error message with popup if not shown already
             return const Center(
               child: Text(
                 "Failed to load weather",
@@ -162,7 +168,6 @@ class _HomeState extends State<Home> {
                           ),
                         ),
                         const SizedBox(height: 20),
-
                         Container(
                           width: double.infinity,
                           decoration: BoxDecoration(
@@ -181,7 +186,6 @@ class _HomeState extends State<Home> {
                             fit: BoxFit.contain,
                           ),
                         ),
-
                         const SizedBox(height: 20),
                         Container(
                           width: double.infinity,
@@ -212,117 +216,34 @@ class _HomeState extends State<Home> {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 20),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 20,
-                          ),
-                          height: 100,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.cyanAccent,
-                              width: 2,
-                            ),
-                          ),
-                          child: Center(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _InfoItem(
-                                  "Temp",
-                                  "${weather.current.tempC.round()}°",
-                                ),
-                                _InfoItem(
-                                  "Wind",
-                                  "${weather.current.windKph} km/h",
-                                ),
-                                _InfoItem(
-                                  "Humidity",
-                                  "${weather.current.humidity}%",
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 20,
-                          ),
-                          height: 100,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.cyanAccent,
-                              width: 2,
-                            ),
-                          ),
-                          child: Center(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _InfoItem(
-                                  "Avg Temp",
-                                  "${day.day.avgtempC.round()}°",
-                                ),
-                                _InfoItem(
-                                  "Min Temp",
-                                  "${day.day.mintempC.round()}°",
-                                ),
-                                _InfoItem(
-                                  "Max Temp",
-                                  "${day.day.maxtempC.round()}°",
-                                ),
-                              ],
-                            ),
-                          ),
+                        // Info containers
+                        _weatherInfoRow(
+                          "Temp",
+                          "${weather.current.tempC.round()}°",
+                          "Wind",
+                          "${weather.current.windKph} km/h",
+                          "Humidity",
+                          "${weather.current.humidity}%",
                         ),
                         const SizedBox(height: 20),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 20,
-                          ),
-                          height: 100,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.cyanAccent,
-                              width: 2,
-                            ),
-                          ),
-                          child: Center(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _InfoItem(
-                                  "Rain Chance",
-                                  "${day.day.dailyChanceOfRain}%",
-                                ),
-                                _InfoItem(
-                                  "Snow Chance",
-                                  "${day.day.dailyChanceOfSnow}%",
-                                ),
-                                _InfoItem(
-                                  "Max Wind",
-                                  "${day.day.maxwindKph} km/h",
-                                ),
-                              ],
-                            ),
-                          ),
+                        _weatherInfoRow(
+                          "Avg Temp",
+                          "${day.day.avgtempC.round()}°",
+                          "Min Temp",
+                          "${day.day.mintempC.round()}°",
+                          "Max Temp",
+                          "${day.day.maxtempC.round()}°",
                         ),
-
+                        const SizedBox(height: 20),
+                        _weatherInfoRow(
+                          "Rain Chance",
+                          "${day.day.dailyChanceOfRain}%",
+                          "Snow Chance",
+                          "${day.day.dailyChanceOfSnow}%",
+                          "Max Wind",
+                          "${day.day.maxwindKph} km/h",
+                        ),
                         const SizedBox(height: 20),
                         Container(
                           padding: EdgeInsets.all(10),
@@ -341,36 +262,24 @@ class _HomeState extends State<Home> {
                                     context,
                                     PageRouteBuilder(
                                       pageBuilder:
-                                          (
-                                            context,
-                                            animation,
-                                            secondaryAnimation,
-                                          ) => DailyForecastPage(
-                                            weather: weather,
-                                          ),
-                                      transitionsBuilder:
-                                          (
-                                            context,
-                                            animation,
-                                            secondaryAnimation,
-                                            child,
-                                          ) {
-                                            final begin = Offset(0.0, 1.0);
-                                            final end = Offset.zero;
-                                            final curve = Curves.ease;
+                                          (context, animation, secondaryAnimation) =>
+                                              DailyForecastPage(weather: weather),
+                                      transitionsBuilder: (context, animation,
+                                          secondaryAnimation, child) {
+                                        final begin = Offset(0.0, 1.0);
+                                        final end = Offset.zero;
+                                        final curve = Curves.ease;
 
-                                            final tween = Tween(
-                                              begin: begin,
-                                              end: end,
-                                            ).chain(CurveTween(curve: curve));
-                                            final offsetAnimation = animation
-                                                .drive(tween);
+                                        final tween = Tween(begin: begin, end: end)
+                                            .chain(CurveTween(curve: curve));
+                                        final offsetAnimation =
+                                            animation.drive(tween);
 
-                                            return SlideTransition(
-                                              position: offsetAnimation,
-                                              child: child,
-                                            );
-                                          },
+                                        return SlideTransition(
+                                          position: offsetAnimation,
+                                          child: child,
+                                        );
+                                      },
                                     ),
                                   );
                                 },
@@ -408,6 +317,32 @@ class _HomeState extends State<Home> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _weatherInfoRow(String label1, String value1, String label2, String value2,
+      String label3, String value3) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+      height: 100,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.cyanAccent,
+          width: 2,
+        ),
+      ),
+      child: Center(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _InfoItem(label1, value1),
+            _InfoItem(label2, value2),
+            _InfoItem(label3, value3),
+          ],
+        ),
       ),
     );
   }
