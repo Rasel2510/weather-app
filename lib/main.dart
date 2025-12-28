@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:weather_r/ui/home.dart';
+
+import 'package:weather_r/loading_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,6 +11,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: Home());
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: LoadingScreen(),
+    );
   }
 }

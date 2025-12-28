@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-import 'package:weather_r/models/weather_model.dart';
+import 'package:weather_r/features/weather/model/weather_model.dart';
 
-class WeatherService {
+class GetApiWeather {
   final String apiKey = "72e7e4f689134be0b3640336252309";
   final String baseUrl = "https://api.weatherapi.com/v1"; 
   Future<Weather> fetchWeatherByLocation(String cityName) async {
